@@ -151,7 +151,8 @@ def generate_response(prompt, system_message):
         
         # Store and display usage stats if available
         if usage:
-            usage_dict = usage.dict()
+            # Fix for Pydantic deprecation warning - use model_dump instead of dict
+            usage_dict = usage.model_dump() if hasattr(usage, 'model_dump') else usage.dict()
             st.session_state.usage_stats.append({
                 "prompt_tokens": usage_dict.get("prompt_tokens", 0),
                 "completion_tokens": usage_dict.get("completion_tokens", 0),
@@ -217,9 +218,11 @@ with st.sidebar:
     if experiments:
         # First dropdown: select experiment with a blank default option
         experiment_names = ["Select an experiment"] + [exp.get('experiment_name', "Unnamed Experiment") for exp in experiments]
-        exp_index = st.selectbox("Select Experiment", 
-                               range(len(experiment_names)),
-                               format_func=lambda i: experiment_names[i]) 
+        exp_index = st.selectbox(
+            "Select Experiment", 
+            range(len(experiment_names)),
+            format_func=lambda i: experiment_names[i]
+        ) 
         
         # Only proceed if a valid experiment is selected (not the blank option)
         if exp_index > 0:
@@ -229,9 +232,11 @@ with st.sidebar:
             if 'conditions' in selected_experiment and selected_experiment['conditions']:
                 condition_names = ["Select a condition"] + [cond.get('label', f"Condition {i+1}") 
                                   for i, cond in enumerate(selected_experiment['conditions'])]
-                cond_index = st.selectbox("Select Condition", 
-                                        range(len(condition_names)),
-                                        format_func=lambda i: condition_names[i])
+                cond_index = st.selectbox(
+                    "Select Condition", 
+                    range(len(condition_names)),
+                    format_func=lambda i: condition_names[i]
+                )
                 
                 # Only enable the load button if a valid condition is selected
                 if cond_index > 0:
@@ -240,7 +245,15 @@ with st.sidebar:
                     # Preview the system message
                     st.markdown("### Preview: System Message")
                     system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
-                    st.text_area("", value=system_prompt, height=120, disabled=True, key="preview_system_message")
+                    # Fix empty label warning by providing a label
+                    st.text_area(
+                        "System Prompt Preview", 
+                        value=system_prompt, 
+                        height=120, 
+                        disabled=True, 
+                        key="preview_system_message",
+                        label_visibility="collapsed"  # Hide the label but still provide one
+                    )
                     
                     # Load button
                     if st.button("Load Experiment"):
@@ -300,7 +313,7 @@ with st.sidebar:
     
     # Process display toggle - moved to bottom
     st.markdown("---")
-    st.session_state.show_process = st.checkbox("Show Model Process", value=st.session_state.show_process)
+    st.session_state.show_process = st.checkbox("Show Model Process (Last message)", value=st.session_state.show_process)
 
 # Main chat area with padding at bottom
 chat_container = st.container()
