@@ -3,6 +3,7 @@ import streamlit as st
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
+import glob
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,6 +24,32 @@ if "system_message" not in st.session_state:
 
 if "usage_stats" not in st.session_state:
     st.session_state.usage_stats = []
+
+if "selected_experiment" not in st.session_state:
+    st.session_state.selected_experiment = None
+
+if "selected_condition" not in st.session_state:
+    st.session_state.selected_condition = None
+
+def load_experiments():
+    """Load all experiment JSON files from the prompts directory"""
+    experiments = []
+    prompts_dir = os.path.join(os.getcwd(), "prompts")
+    
+    if not os.path.exists(prompts_dir):
+        return experiments
+    
+    json_files = glob.glob(os.path.join(prompts_dir, "*.json"))
+    
+    for file_path in json_files:
+        try:
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                experiments.append(data)
+        except Exception as e:
+            st.warning(f"Error loading {file_path}: {str(e)}")
+    
+    return experiments
 
 def get_openai_client():
     """Create and return an OpenAI client configured with environment variables"""
@@ -104,10 +131,11 @@ st.title("🤖 GPT-4o Chatbot")
 with st.sidebar:
     st.subheader("Settings")
     
-    # System message editor
+    # System message editor - use the value from session_state directly
+    system_message_value = st.session_state.system_message
     st.text_area(
         "Edit System Message", 
-        value=st.session_state.system_message,
+        value=system_message_value,
         key="system_message_input",
         height=150
     )
@@ -115,6 +143,55 @@ with st.sidebar:
     if st.button("Update System Message"):
         st.session_state.system_message = st.session_state.system_message_input
         st.success("System message updated!")
+    
+    # Experiment loader section
+    st.markdown("---")
+    st.subheader("Experiment Loader")
+    
+    experiments = load_experiments()
+    if experiments:
+        # First dropdown: select experiment
+        experiment_names = [exp.get('experiment_name', "Unnamed Experiment") for exp in experiments]
+        exp_index = st.selectbox("Select Experiment", 
+                               range(len(experiments)),
+                               format_func=lambda i: experiment_names[i])
+        
+        selected_experiment = experiments[exp_index]
+        
+        # Second dropdown: select condition within the experiment
+        if 'conditions' in selected_experiment and selected_experiment['conditions']:
+            condition_names = [cond.get('label', f"Condition {i+1}") 
+                              for i, cond in enumerate(selected_experiment['conditions'])]
+            cond_index = st.selectbox("Select Condition", 
+                                    range(len(selected_experiment['conditions'])),
+                                    format_func=lambda i: condition_names[i])
+            
+            selected_condition = selected_experiment['conditions'][cond_index]
+            
+            # Load button
+            if st.button("Load Experiment"):
+                # Update system message
+                system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
+                st.session_state.system_message = system_prompt
+                
+                # Clear chat and start with opening message
+                opening_message = selected_condition.get('opening_message', "How can I help you today?")
+                st.session_state.messages = [{"role": "assistant", "content": opening_message}]
+                st.session_state.usage_stats = []
+                
+                # Save selected experiment and condition
+                st.session_state.selected_experiment = experiment_names[exp_index]
+                st.session_state.selected_condition = condition_names[cond_index]
+                
+                st.success(f"Loaded: {experiment_names[exp_index]} - {condition_names[cond_index]}")
+                st.rerun()
+        else:
+            st.warning("Selected experiment has no conditions.")
+    else:
+        st.warning("No experiment files found in the 'prompts' directory.")
+    
+    # Chat history viewer and other sidebar elements
+    st.markdown("---")
     
     # Chat history viewer
     with st.expander("View Chat History"):
