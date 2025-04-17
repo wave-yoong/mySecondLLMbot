@@ -31,6 +31,9 @@ if "selected_experiment" not in st.session_state:
 if "selected_condition" not in st.session_state:
     st.session_state.selected_condition = None
 
+if "show_process" not in st.session_state:
+    st.session_state.show_process = False
+
 def load_experiments():
     """Load all experiment JSON files from the prompts directory"""
     experiments = []
@@ -82,6 +85,26 @@ def generate_response(prompt, system_message):
     messages.append({"role": "user", "content": prompt})
     
     try:
+        # If show process is enabled, display the process details
+        if st.session_state.show_process:
+            process_container = st.container()
+            with process_container:
+                st.markdown("### Model Process")
+                
+                # Display the request details
+                with st.expander("Request Details", expanded=True):
+                    st.markdown("**System Message:**")
+                    st.code(system_message)
+                    st.markdown("**User Input:**")
+                    st.code(prompt)
+                
+                # Container for displaying streaming response
+                st.markdown("**Streaming Response:**")
+                response_area = st.empty()
+                
+                # Container for usage stats
+                usage_area = st.empty()
+        
         response = client.chat.completions.create(
             messages=messages,
             model=model_name,
@@ -89,7 +112,7 @@ def generate_response(prompt, system_message):
             stream_options={'include_usage': True}
         )
         
-        # Container for the assistant's response
+        # Container for the assistant's response in the chat interface
         response_container = st.chat_message("assistant")
         full_response = ""
         usage = None
@@ -101,16 +124,25 @@ def generate_response(prompt, system_message):
                 content_chunk = chunk.choices[0].delta.content
                 full_response += content_chunk
                 message_placeholder.markdown(full_response + "▌")
+                
+                # Update the process view if enabled
+                if st.session_state.show_process:
+                    response_area.code(full_response + "▌")
+                    
             if chunk.usage:
                 usage = chunk.usage
         
         # Update the final response without the cursor
         message_placeholder.markdown(full_response)
         
+        # Update process view with final response if enabled
+        if st.session_state.show_process:
+            response_area.code(full_response)
+        
         # Add the message to history
         st.session_state.messages.append({"role": "assistant", "content": full_response})
         
-        # Store usage stats if available
+        # Store and display usage stats if available
         if usage:
             usage_dict = usage.dict()
             st.session_state.usage_stats.append({
@@ -118,6 +150,14 @@ def generate_response(prompt, system_message):
                 "completion_tokens": usage_dict.get("completion_tokens", 0),
                 "total_tokens": usage_dict.get("total_tokens", 0)
             })
+            
+            # Display usage stats in process view if enabled
+            if st.session_state.show_process:
+                with usage_area.container():
+                    st.markdown("**Usage Statistics:**")
+                    st.markdown(f"- Prompt tokens: {usage_dict.get('prompt_tokens', 0)}")
+                    st.markdown(f"- Completion tokens: {usage_dict.get('completion_tokens', 0)}")
+                    st.markdown(f"- Total tokens: {usage_dict.get('total_tokens', 0)}")
         
         return True
     except Exception as e:
@@ -125,7 +165,24 @@ def generate_response(prompt, system_message):
         return False
 
 # UI Layout
-st.title("🤖 GPT-4o Chatbot")
+st.title("🤖 HAI-5014's Second Chatbot")
+
+# Add CSS to make the input box stick to the bottom
+st.markdown("""
+    <style>
+    .stChatFloatingInputContainer {
+        position: fixed !important;
+        bottom: 0 !important;
+        padding: 1rem !important;
+        width: calc(100% - 250px) !important; /* Adjust for sidebar width */
+        background-color: white !important;
+        z-index: 1000 !important;
+    }
+    .main-content {
+        padding-bottom: 100px; /* Add space at the bottom for the fixed input */
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Sidebar for settings
 with st.sidebar:
@@ -232,13 +289,24 @@ with st.sidebar:
         st.session_state.messages = [{"role": "assistant", "content": "How can I help you today?"}]
         st.session_state.usage_stats = []
         st.success("Chat history cleared!")
+    
+    # Process display toggle - moved to bottom
+    st.markdown("---")
+    st.session_state.show_process = st.checkbox("Show Model Process", value=st.session_state.show_process)
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Main chat area with padding at bottom
+chat_container = st.container()
+with chat_container:
+    st.markdown('<div class="main-content">', unsafe_allow_html=True)  # Add a container with padding
+    
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close the container
 
-# Chat input
+# Chat input - moved outside the main container
 if prompt := st.chat_input("Ask me anything..."):
     # Display user message
     with st.chat_message("user"):
