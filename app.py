@@ -85,29 +85,10 @@ def generate_response(prompt, system_message):
     messages.append({"role": "user", "content": prompt})
     
     try:
-        # If show process is enabled, display the process details
-        if st.session_state.show_process:
-            process_container = st.container()
-            with process_container:
-                st.markdown("### Model Process")
-                
-                # Create expanders for process details
-                request_expander = st.expander("Request Details", expanded=True)
-                with request_expander:
-                    st.markdown("**System Message:**")
-                    st.code(system_message)
-                    st.markdown("**User Input:**")
-                    st.code(prompt)
-                
-                # Container for displaying streaming response
-                response_expander = st.expander("Streaming Response", expanded=True)
-                with response_expander:
-                    response_area = st.empty()
-                
-                # Container for usage stats (initially not expanded)
-                usage_expander = st.expander("Usage Statistics", expanded=False)
-                with usage_expander:
-                    usage_area = st.empty()
+        # Container for the assistant's response in the chat interface
+        response_container = st.chat_message("assistant")
+        full_response = ""
+        usage = None
         
         response = client.chat.completions.create(
             messages=messages,
@@ -116,11 +97,6 @@ def generate_response(prompt, system_message):
             stream_options={'include_usage': True}
         )
         
-        # Container for the assistant's response in the chat interface
-        response_container = st.chat_message("assistant")
-        full_response = ""
-        usage = None
-        
         # Stream the response
         message_placeholder = response_container.empty()
         for chunk in response:
@@ -128,10 +104,6 @@ def generate_response(prompt, system_message):
                 content_chunk = chunk.choices[0].delta.content
                 full_response += content_chunk
                 message_placeholder.markdown(full_response + "▌")
-                
-                # Update the process view if enabled
-                if st.session_state.show_process:
-                    response_area.code(full_response + "▌")
                     
             if chunk.usage:
                 usage = chunk.usage
@@ -139,17 +111,10 @@ def generate_response(prompt, system_message):
         # Update the final response without the cursor
         message_placeholder.markdown(full_response)
         
-        # Update process view with final response if enabled
-        if st.session_state.show_process:
-            response_area.code(full_response)
-            # Auto-collapse request and response expanders once complete
-            request_expander.expanded = False
-            response_expander.expanded = False
-        
         # Add the message to history
         st.session_state.messages.append({"role": "assistant", "content": full_response})
         
-        # Store and display usage stats if available
+        # Store usage stats if available
         if usage:
             # Fix for Pydantic deprecation warning - use model_dump instead of dict
             usage_dict = usage.model_dump() if hasattr(usage, 'model_dump') else usage.dict()
@@ -158,15 +123,34 @@ def generate_response(prompt, system_message):
                 "completion_tokens": usage_dict.get("completion_tokens", 0),
                 "total_tokens": usage_dict.get("total_tokens", 0)
             })
-            
-            # Display usage stats in process view if enabled
-            if st.session_state.show_process:
-                usage_area.markdown("**Usage Statistics:**")
-                usage_area.markdown(f"- Prompt tokens: {usage_dict.get('prompt_tokens', 0)}")
-                usage_area.markdown(f"- Completion tokens: {usage_dict.get('completion_tokens', 0)}")
-                usage_area.markdown(f"- Total tokens: {usage_dict.get('total_tokens', 0)}")
-                # Auto-expand usage statistics after completion
-                usage_expander.expanded = True
+        
+        # If show process is enabled, display the process details AFTER the response
+        if st.session_state.show_process:
+            process_container = st.container()
+            with process_container:
+                st.markdown("### Model Process")
+                
+                # Create expanders for process details - all collapsed by default
+                request_expander = st.expander("Request Details", expanded=False)
+                with request_expander:
+                    st.markdown("**System Message:**")
+                    st.code(system_message)
+                    st.markdown("**User Input:**")
+                    st.code(prompt)
+                
+                # Container for displaying raw response
+                response_expander = st.expander("Raw Response", expanded=False)
+                with response_expander:
+                    st.code(full_response, language="markdown")
+                
+                # Container for usage stats
+                if usage:
+                    usage_expander = st.expander("Usage Statistics", expanded=False)
+                    with usage_expander:
+                        st.markdown("**Usage Statistics:**")
+                        st.markdown(f"- Prompt tokens: {usage_dict.get('prompt_tokens', 0)}")
+                        st.markdown(f"- Completion tokens: {usage_dict.get('completion_tokens', 0)}")
+                        st.markdown(f"- Total tokens: {usage_dict.get('total_tokens', 0)}")
         
         return True
     except Exception as e:
