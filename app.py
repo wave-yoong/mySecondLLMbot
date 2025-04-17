@@ -91,19 +91,23 @@ def generate_response(prompt, system_message):
             with process_container:
                 st.markdown("### Model Process")
                 
-                # Display the request details
-                with st.expander("Request Details", expanded=True):
+                # Create expanders for process details
+                request_expander = st.expander("Request Details", expanded=True)
+                with request_expander:
                     st.markdown("**System Message:**")
                     st.code(system_message)
                     st.markdown("**User Input:**")
                     st.code(prompt)
                 
                 # Container for displaying streaming response
-                st.markdown("**Streaming Response:**")
-                response_area = st.empty()
+                response_expander = st.expander("Streaming Response", expanded=True)
+                with response_expander:
+                    response_area = st.empty()
                 
-                # Container for usage stats
-                usage_area = st.empty()
+                # Container for usage stats (initially not expanded)
+                usage_expander = st.expander("Usage Statistics", expanded=False)
+                with usage_expander:
+                    usage_area = st.empty()
         
         response = client.chat.completions.create(
             messages=messages,
@@ -138,6 +142,9 @@ def generate_response(prompt, system_message):
         # Update process view with final response if enabled
         if st.session_state.show_process:
             response_area.code(full_response)
+            # Auto-collapse request and response expanders once complete
+            request_expander.expanded = False
+            response_expander.expanded = False
         
         # Add the message to history
         st.session_state.messages.append({"role": "assistant", "content": full_response})
@@ -153,11 +160,12 @@ def generate_response(prompt, system_message):
             
             # Display usage stats in process view if enabled
             if st.session_state.show_process:
-                with usage_area.container():
-                    st.markdown("**Usage Statistics:**")
-                    st.markdown(f"- Prompt tokens: {usage_dict.get('prompt_tokens', 0)}")
-                    st.markdown(f"- Completion tokens: {usage_dict.get('completion_tokens', 0)}")
-                    st.markdown(f"- Total tokens: {usage_dict.get('total_tokens', 0)}")
+                usage_area.markdown("**Usage Statistics:**")
+                usage_area.markdown(f"- Prompt tokens: {usage_dict.get('prompt_tokens', 0)}")
+                usage_area.markdown(f"- Completion tokens: {usage_dict.get('completion_tokens', 0)}")
+                usage_area.markdown(f"- Total tokens: {usage_dict.get('total_tokens', 0)}")
+                # Auto-expand usage statistics after completion
+                usage_expander.expanded = True
         
         return True
     except Exception as e:
