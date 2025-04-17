@@ -172,10 +172,14 @@ with st.sidebar:
                 if cond_index > 0:
                     selected_condition = selected_experiment['conditions'][cond_index - 1]  # Adjust index
                     
+                    # Preview the system message
+                    st.markdown("### Preview: System Message")
+                    system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
+                    st.text_area("", value=system_prompt, height=120, disabled=True, key="preview_system_message")
+                    
                     # Load button
                     if st.button("Load Experiment"):
                         # Update system message
-                        system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
                         st.session_state.system_message = system_prompt
                         
                         # Clear chat and start with opening message
