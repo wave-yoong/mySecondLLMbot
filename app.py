@@ -10,7 +10,7 @@ load_dotenv()
 
 # Set page config
 st.set_page_config(
-    page_title="GPT-4o Chatbot",
+    page_title="HAI-5014's Second Chatbot",
     page_icon="🤖",
     layout="wide"
 )
