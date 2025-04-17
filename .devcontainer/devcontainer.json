@@ -1,0 +1,35 @@
+/*
+* Dev container configuration file for GitHub Crash Course
+* Sungkyunkwan University 2025 Spring Semester - by camphouse.me
+*/
+
+{
+    "name": "Python 3",
+    // Use the official Python 3.11 image as a base
+    "image": "mcr.microsoft.com/devcontainers/python:0-3.11-bullseye",
+    "features": {
+    },
+
+    // Configure the Codespaces Machine to use 2 CPUs
+    "hostRequirements": {
+        "cpus": 2
+    },
+
+    // Use 'postCreateCommand' to run commands after the container is created.
+    "postStartCommand": "export PATH=/usr/local/python3.11/bin:$PATH",
+    "postCreateCommand": "pip3 install --user -r requirements.txt",
+    
+    // Install preferred extensions into VS Code
+    "customizations": {
+        "vscode": {
+        "extensions": [
+        "github.copilot",
+        "ms-python.python",
+        "ms-toolsai.datawrangler",
+        "ms-toolsai.jupyter",
+        "DavidAnson.vscode-markdownlint",
+        "esbenp.prettier-vscode"
+        ]
+    }
+    }
+}
