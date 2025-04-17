@@ -9,8 +9,9 @@ load_dotenv()
 
 # Set page config
 st.set_page_config(
-    page_title="Chat Bot Application",
-    page_icon="💬",
+    page_title="GPT-4o Chatbot",
+    page_icon="🤖",
+    layout="wide"
 )
 
 # Initialize session state variables if they don't exist
@@ -96,9 +97,8 @@ def generate_response(prompt, system_message):
         st.error(f"Error generating response: {str(e)}")
         return False
 
-# Main page content
-st.title("Chat Bot Application")
-st.write("Welcome to the Chat Bot! Use the sidebar to navigate to the chat history.")
+# UI Layout
+st.title("🤖 GPT-4o Chatbot")
 
 # Sidebar for settings
 with st.sidebar:
@@ -154,7 +154,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Chat input
-if prompt := st.chat_input("Ask something..."):
+if prompt := st.chat_input("Ask me anything..."):
     # Display user message
     with st.chat_message("user"):
         st.markdown(prompt)
