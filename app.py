@@ -150,43 +150,47 @@ with st.sidebar:
     
     experiments = load_experiments()
     if experiments:
-        # First dropdown: select experiment
-        experiment_names = [exp.get('experiment_name', "Unnamed Experiment") for exp in experiments]
+        # First dropdown: select experiment with a blank default option
+        experiment_names = ["Select an experiment"] + [exp.get('experiment_name', "Unnamed Experiment") for exp in experiments]
         exp_index = st.selectbox("Select Experiment", 
-                               range(len(experiments)),
-                               format_func=lambda i: experiment_names[i])
+                               range(len(experiment_names)),
+                               format_func=lambda i: experiment_names[i]) 
         
-        selected_experiment = experiments[exp_index]
-        
-        # Second dropdown: select condition within the experiment
-        if 'conditions' in selected_experiment and selected_experiment['conditions']:
-            condition_names = [cond.get('label', f"Condition {i+1}") 
-                              for i, cond in enumerate(selected_experiment['conditions'])]
-            cond_index = st.selectbox("Select Condition", 
-                                    range(len(selected_experiment['conditions'])),
-                                    format_func=lambda i: condition_names[i])
+        # Only proceed if a valid experiment is selected (not the blank option)
+        if exp_index > 0:
+            selected_experiment = experiments[exp_index - 1]  # Adjust index for the actual experiment
             
-            selected_condition = selected_experiment['conditions'][cond_index]
-            
-            # Load button
-            if st.button("Load Experiment"):
-                # Update system message
-                system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
-                st.session_state.system_message = system_prompt
+            # Second dropdown: select condition within the experiment with a blank default
+            if 'conditions' in selected_experiment and selected_experiment['conditions']:
+                condition_names = ["Select a condition"] + [cond.get('label', f"Condition {i+1}") 
+                                  for i, cond in enumerate(selected_experiment['conditions'])]
+                cond_index = st.selectbox("Select Condition", 
+                                        range(len(condition_names)),
+                                        format_func=lambda i: condition_names[i])
                 
-                # Clear chat and start with opening message
-                opening_message = selected_condition.get('opening_message', "How can I help you today?")
-                st.session_state.messages = [{"role": "assistant", "content": opening_message}]
-                st.session_state.usage_stats = []
-                
-                # Save selected experiment and condition
-                st.session_state.selected_experiment = experiment_names[exp_index]
-                st.session_state.selected_condition = condition_names[cond_index]
-                
-                st.success(f"Loaded: {experiment_names[exp_index]} - {condition_names[cond_index]}")
-                st.rerun()
-        else:
-            st.warning("Selected experiment has no conditions.")
+                # Only enable the load button if a valid condition is selected
+                if cond_index > 0:
+                    selected_condition = selected_experiment['conditions'][cond_index - 1]  # Adjust index
+                    
+                    # Load button
+                    if st.button("Load Experiment"):
+                        # Update system message
+                        system_prompt = selected_condition.get('system_prompt', "You are a helpful assistant.")
+                        st.session_state.system_message = system_prompt
+                        
+                        # Clear chat and start with opening message
+                        opening_message = selected_condition.get('opening_message', "How can I help you today?")
+                        st.session_state.messages = [{"role": "assistant", "content": opening_message}]
+                        st.session_state.usage_stats = []
+                        
+                        # Save selected experiment and condition
+                        st.session_state.selected_experiment = experiment_names[exp_index]
+                        st.session_state.selected_condition = condition_names[cond_index]
+                        
+                        st.success(f"Loaded: {experiment_names[exp_index]} - {condition_names[cond_index]}")
+                        st.rerun()
+            else:
+                st.warning("Selected experiment has no conditions.")
     else:
         st.warning("No experiment files found in the 'prompts' directory.")
     
